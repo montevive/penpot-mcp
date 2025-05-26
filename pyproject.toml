@@ -1,0 +1,138 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "penpot-mcp"
+version = "0.1.0"
+description = "Model Context Protocol server for Penpot"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Montevive AI Team", email = "info@montevive.ai"}
+]
+keywords = ["penpot", "mcp", "llm", "ai", "design", "prototyping"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1.7.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.26.0",
+    "gunicorn>=20.1.0",
+    "anytree>=2.8.0",
+    "jsonschema>=4.0.0",
+    "PyYAML>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-mock>=3.11.1",
+    "pytest-cov>=4.1.0",
+    "flake8>=6.1.0",
+    "flake8-docstrings>=1.7.0",
+    "pre-commit>=3.5.0",
+    "isort>=5.12.0",
+    "autopep8>=2.0.4",
+    "pyupgrade>=3.13.0",
+    "setuptools>=65.5.0",
+]
+cli = [
+    "mcp[cli]>=1.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/montevive/penpot-mcp"
+Repository = "https://github.com/montevive/penpot-mcp.git"
+Issues = "https://github.com/montevive/penpot-mcp/issues"
+Documentation = "https://github.com/montevive/penpot-mcp#readme"
+
+[project.scripts]
+penpot-mcp = "penpot_mcp.server.mcp_server:main"
+penpot-client = "penpot_mcp.server.client:main"
+penpot-tree = "penpot_mcp.tools.cli.tree_cmd:main"
+penpot-validate = "penpot_mcp.tools.cli.validate_cmd:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["penpot_mcp*"]
+
+[tool.setuptools.package-data]
+penpot_mcp = ["resources/*.json"]
+
+# pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["penpot_mcp"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+# isort configuration
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["penpot_mcp"]
+skip = [".venv", "venv", "__pycache__"]
+
+# Black configuration (if you decide to use it)
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+''' 

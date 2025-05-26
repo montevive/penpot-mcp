@@ -1,0 +1,295 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["colors", "typographies", "pages", "components", "id", "tokensLib", "pagesIndex"],
+    "properties": {
+      "colors": {
+        "type": "object",
+        "patternProperties": {
+          "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$": {
+            "type": "object",
+            "required": ["path", "color", "name", "modifiedAt", "opacity", "id"],
+            "properties": {
+              "path": {"type": "string"},
+              "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+              "name": {"type": "string"},
+              "modifiedAt": {"type": "string", "format": "date-time"},
+              "opacity": {"type": "number", "minimum": 0, "maximum": 1},
+              "id": {"type": "string", "format": "uuid"}
+            }
+          }
+        }
+      },
+      "typographies": {
+        "type": "object",
+        "patternProperties": {
+          "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$": {
+            "type": "object",
+            "required": ["lineHeight", "path", "fontStyle", "textTransform", "fontId", "fontSize", "fontWeight", "name", "modifiedAt", "fontVariantId", "id", "letterSpacing", "fontFamily"],
+            "properties": {
+              "lineHeight": {"type": "string"},
+              "path": {"type": "string"},
+              "fontStyle": {"type": "string", "enum": ["normal"]},
+              "textTransform": {"type": "string", "enum": ["uppercase", "none"]},
+              "fontId": {"type": "string"},
+              "fontSize": {"type": "string"},
+              "fontWeight": {"type": "string"},
+              "name": {"type": "string"},
+              "modifiedAt": {"type": "string", "format": "date-time"},
+              "fontVariantId": {"type": "string"},
+              "id": {"type": "string", "format": "uuid"},
+              "letterSpacing": {"type": "string"},
+              "fontFamily": {"type": "string"}
+            }
+          }
+        }
+      },
+      "components": {
+        "type": "object",
+        "patternProperties": {
+          "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$": {
+            "type": "object",
+            "required": ["id", "name", "path", "modifiedAt", "mainInstanceId", "mainInstancePage"],
+            "properties": {
+              "id": {"type": "string", "format": "uuid"},
+              "name": {"type": "string"},
+              "path": {"type": "string"},
+              "modifiedAt": {"type": "string", "format": "date-time"},
+              "mainInstanceId": {"type": "string", "format": "uuid"},
+              "mainInstancePage": {"type": "string", "format": "uuid"},
+              "annotation": {"type": "string"}
+            }
+          }
+        }
+      },
+      "id": {"type": "string", "format": "uuid"},
+      "tokensLib": {
+        "type": "object",
+        "required": ["sets", "themes", "activeThemes"],
+        "properties": {
+          "sets": {
+            "type": "object",
+            "patternProperties": {
+              "^S-[a-z]+$": {
+                "type": "object",
+                "required": ["name", "description", "modifiedAt", "tokens"],
+                "properties": {
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "modifiedAt": {"type": "string", "format": "date-time"},
+                  "tokens": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^[a-z][a-z0-9.-]*$": {
+                        "type": "object",
+                        "required": ["name", "type", "value", "description", "modifiedAt"],
+                        "properties": {
+                          "name": {"type": "string"},
+                          "type": {"type": "string", "enum": ["dimensions", "sizing", "color", "border-radius", "spacing", "stroke-width", "rotation", "opacity"]},
+                          "value": {"type": "string"},
+                          "description": {"type": "string"},
+                          "modifiedAt": {"type": "string", "format": "date-time"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "themes": {
+            "type": "object",
+            "patternProperties": {
+              ".*": {
+                "type": "object",
+                "patternProperties": {
+                  ".*": {
+                    "type": "object",
+                    "required": ["name", "group", "description", "isSource", "id", "modifiedAt", "sets"],
+                    "properties": {
+                      "name": {"type": "string"},
+                      "group": {"type": "string"},
+                      "description": {"type": "string"},
+                      "isSource": {"type": "boolean"},
+                      "id": {"type": "string", "format": "uuid"},
+                      "modifiedAt": {"type": "string", "format": "date-time"},
+                      "sets": {"type": "array", "items": {"type": "string"}}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "activeThemes": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      },
+      "options": {
+        "type": "object",
+        "properties": {
+          "componentsV2": {"type": "boolean"}
+        }
+      },
+      "objects": {
+        "type": "object",
+        "patternProperties": {
+          "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$": {
+            "type": "object",
+            "required": ["options", "objects", "id", "name"],
+            "properties": {
+              "options": {"type": "object"},
+              "objects": {
+                "type": "object",
+                "patternProperties": {
+                  "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$": {
+                    "type": "object",
+                    "required": ["id", "name", "type"],
+                    "properties": {
+                      "id": {"type": "string", "format": "uuid"},
+                      "name": {"type": "string"},
+                      "type": {"type": "string", "enum": ["frame", "rect", "text"]},
+                      "x": {"type": "number"},
+                      "y": {"type": "number"},
+                      "width": {"type": "number"},
+                      "height": {"type": "number"},
+                      "rotation": {"type": "number"},
+                      "selrect": {
+                        "type": "object",
+                        "properties": {
+                          "x": {"type": "number"},
+                          "y": {"type": "number"},
+                          "width": {"type": "number"},
+                          "height": {"type": "number"},
+                          "x1": {"type": "number"},
+                          "y1": {"type": "number"},
+                          "x2": {"type": "number"},
+                          "y2": {"type": "number"}
+                        }
+                      },
+                      "points": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "x": {"type": "number"},
+                            "y": {"type": "number"}
+                          }
+                        }
+                      },
+                      "transform": {
+                        "type": "object",
+                        "properties": {
+                          "a": {"type": "number"},
+                          "b": {"type": "number"},
+                          "c": {"type": "number"},
+                          "d": {"type": "number"},
+                          "e": {"type": "number"},
+                          "f": {"type": "number"}
+                        }
+                      },
+                      "transformInverse": {
+                        "type": "object",
+                        "properties": {
+                          "a": {"type": "number"},
+                          "b": {"type": "number"},
+                          "c": {"type": "number"},
+                          "d": {"type": "number"},
+                          "e": {"type": "number"},
+                          "f": {"type": "number"}
+                        }
+                      },
+                      "parentId": {"type": "string", "format": "uuid"},
+                      "frameId": {"type": "string", "format": "uuid"},
+                      "flipX": {"type": ["null", "boolean"]},
+                      "flipY": {"type": ["null", "boolean"]},
+                      "hideFillOnExport": {"type": "boolean"},
+                      "growType": {"type": "string", "enum": ["fixed", "auto-height"]},
+                      "hideInViewer": {"type": "boolean"},
+                      "r1": {"type": "number"},
+                      "r2": {"type": "number"},
+                      "r3": {"type": "number"},
+                      "r4": {"type": "number"},
+                      "proportion": {"type": "number"},
+                      "proportionLock": {"type": "boolean"},
+                      "componentRoot": {"type": "boolean"},
+                      "componentId": {"type": "string", "format": "uuid"},
+                      "mainInstance": {"type": "boolean"},
+                      "componentFile": {"type": "string", "format": "uuid"},
+                      "strokes": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "strokeStyle": {"type": "string"},
+                            "strokeAlignment": {"type": "string"},
+                            "strokeWidth": {"type": "number"},
+                            "strokeColor": {"type": "string"},
+                            "strokeOpacity": {"type": "number"}
+                          }
+                        }
+                      },
+                      "fills": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "fillColor": {"type": "string"},
+                            "fillOpacity": {"type": "number"},
+                            "fillImage": {
+                              "type": "object",
+                              "properties": {
+                                "name": {"type": "string"},
+                                "width": {"type": "number"},
+                                "height": {"type": "number"},
+                                "mtype": {"type": "string"},
+                                "id": {"type": "string", "format": "uuid"},
+                                "keepAspectRatio": {"type": "boolean"}
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "shapes": {
+                        "type": "array",
+                        "items": {"type": "string", "format": "uuid"}
+                      },
+                      "content": {
+                        "type": "object",
+                        "properties": {
+                          "type": {"type": "string"},
+                          "children": {"type": "array"}
+                        }
+                      },
+                      "appliedTokens": {"type": "object"},
+                      "positionData": {"type": "array"},
+                      "layoutItemMarginType": {"type": "string"},
+                      "constraintsV": {"type": "string"},
+                      "constraintsH": {"type": "string"},
+                      "layoutItemMargin": {"type": "object"},
+                      "layoutGapType": {"type": "string"},
+                      "layoutPadding": {"type": "object"},
+                      "layoutWrapType": {"type": "string"},
+                      "layout": {"type": "string"},
+                      "layoutAlignItems": {"type": "string"},
+                      "layoutPaddingType": {"type": "string"},
+                      "layoutItemHSizing": {"type": "string"},
+                      "layoutGap": {"type": "object"},
+                      "layoutItemVSizing": {"type": "string"},
+                      "layoutJustifyContent": {"type": "string"},
+                      "layoutFlexDir": {"type": "string"},
+                      "layoutAlignContent": {"type": "string"},
+                      "shapeRef": {"type": "string", "format": "uuid"}
+                    }
+                  }
+                }
+              },
+              "id": {"type": "string", "format": "uuid"},
+              "name": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }

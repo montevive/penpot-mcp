@@ -1,0 +1,1 @@
+"""Package penpot_mcp."""
