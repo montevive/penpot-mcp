@@ -4,25 +4,31 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "penpot-mcp"
-version = "0.1.0"
-description = "Model Context Protocol server for Penpot"
+dynamic = ["version"]
+description = "Model Context Protocol server for Penpot - AI-powered design workflow automation"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Montevive AI Team", email = "info@montevive.ai"}
 ]
-keywords = ["penpot", "mcp", "llm", "ai", "design", "prototyping"]
+keywords = ["penpot", "mcp", "llm", "ai", "design", "prototyping", "claude", "cursor", "model-context-protocol"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: End Users/Desktop",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Multimedia :: Graphics :: Graphics Conversion",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: User Interfaces",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.7.0",
     "python-dotenv>=1.0.0",
@@ -31,6 +37,7 @@ dependencies = [
     "anytree>=2.8.0",
     "jsonschema>=4.0.0",
     "PyYAML>=6.0.0",
+    "twine>=6.1.0",
 ]
 
 [project.optional-dependencies]
@@ -55,12 +62,16 @@ Homepage = "https://github.com/montevive/penpot-mcp"
 Repository = "https://github.com/montevive/penpot-mcp.git"
 Issues = "https://github.com/montevive/penpot-mcp/issues"
 Documentation = "https://github.com/montevive/penpot-mcp#readme"
+Changelog = "https://github.com/montevive/penpot-mcp/releases"
 
 [project.scripts]
 penpot-mcp = "penpot_mcp.server.mcp_server:main"
 penpot-client = "penpot_mcp.server.client:main"
 penpot-tree = "penpot_mcp.tools.cli.tree_cmd:main"
 penpot-validate = "penpot_mcp.tools.cli.validate_cmd:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "penpot_mcp.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["."]

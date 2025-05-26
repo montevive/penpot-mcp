@@ -293,9 +293,10 @@ Cursor IDE supports MCP servers through its AI integration features. To configur
 
    ```json
    {
-     "mcp.servers": {
+     "mcpServers": {
        "penpot": {
-         "command": "penpot-mcp",
+         "command": "uvx",
+         "args": ["penpot-mcp"],
          "env": {
            "PENPOT_API_URL": "https://design.penpot.app/api",
            "PENPOT_USERNAME": "your_penpot_username",
