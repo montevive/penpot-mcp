@@ -28,7 +28,7 @@
 
 ## 🚀 What is Penpot MCP?
 
-**Penpot MCP** is a revolutionary Model Context Protocol (MCP) server that bridges the gap between AI language models and [Penpot](https://penpot.app/), the open-source design and prototyping platform. This integration enables AI assistants like Claude to understand, analyze, and interact with your design files programmatically.
+**Penpot MCP** is a revolutionary Model Context Protocol (MCP) server that bridges the gap between AI language models and [Penpot](https://penpot.app/), the open-source design and prototyping platform. This integration enables AI assistants like Claude (in both Claude Desktop and Cursor IDE) to understand, analyze, and interact with your design files programmatically.
 
 ### 🎯 Key Benefits
 
@@ -36,7 +36,7 @@
 - **⚡ Automated Design Workflows**: Streamline repetitive design tasks with AI-powered automation
 - **🔍 Intelligent Design Search**: Find design components and patterns across your projects using natural language
 - **📊 Design System Management**: Automatically document and maintain design systems with AI assistance
-- **🎨 Cross-Platform Integration**: Works with any MCP-compatible AI assistant (Claude, ChatGPT, etc.)
+- **🎨 Cross-Platform Integration**: Works with any MCP-compatible AI assistant (Claude Desktop, Cursor IDE, etc.)
 
 ## 🎥 Demo Video
 
@@ -60,10 +60,11 @@ Check out our demo video to see Penpot MCP in action:
 - **Extensible Architecture**: Plugin system for custom AI workflows
 
 ### 🎨 AI Integration Features
-- **Claude Desktop Integration**: Native support for Claude AI assistant
+- **Claude Desktop & Cursor Integration**: Native support for Claude AI assistant in both Claude Desktop and Cursor IDE
 - **Design Context Sharing**: Provide design context to AI models for better responses
 - **Visual Component Recognition**: AI can "see" and understand design components
 - **Natural Language Queries**: Ask questions about your designs in plain English
+- **IDE Integration**: Seamless integration with modern development environments
 
 ## 💡 Use Cases
 
@@ -91,7 +92,7 @@ Check out our demo video to see Penpot MCP in action:
 
 - **Python 3.12+** (Latest Python recommended for optimal performance)
 - **Penpot Account** ([Sign up free](https://penpot.app/))
-- **Claude Desktop** (Optional, for AI integration)
+- **Claude Desktop or Cursor IDE** (Optional, for AI integration)
 
 ## Installation
 
@@ -253,15 +254,86 @@ penpot-client
 - `get_object_tree` - Get the object tree structure for a Penpot object
 - `search_object` - Search for objects within a Penpot file by name
 
-## Claude AI Integration
+## AI Integration
 
-The Penpot MCP server can be integrated with Claude AI using the Model Context Protocol. For detailed instructions, see [CLAUDE_INTEGRATION.md](CLAUDE_INTEGRATION.md).
+The Penpot MCP server can be integrated with AI assistants using the Model Context Protocol. It supports both Claude Desktop and Cursor IDE for seamless design workflow automation.
 
-Key features of the Claude integration:
-- Direct integration with Claude Desktop
-- Access to Penpot projects and files
-- Ability to view and analyze design components
-- Export Penpot objects as images
+### Claude Desktop Integration
+
+For detailed Claude Desktop setup instructions, see [CLAUDE_INTEGRATION.md](CLAUDE_INTEGRATION.md).
+
+Add the following configuration to your Claude Desktop config file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+
+```json
+{
+  "mcpServers": {
+    "penpot": {
+      "command": "uvx",
+      "args": ["penpot-mcp"],
+      "env": {
+        "PENPOT_API_URL": "https://design.penpot.app/api",
+        "PENPOT_USERNAME": "your_penpot_username",
+        "PENPOT_PASSWORD": "your_penpot_password"
+      }
+    }
+  }
+}
+```
+
+### Cursor IDE Integration
+
+Cursor IDE supports MCP servers through its AI integration features. To configure Penpot MCP with Cursor:
+
+1. **Install the MCP server** (if not already installed):
+   ```bash
+   pip install penpot-mcp
+   ```
+
+2. **Configure Cursor settings** by adding the MCP server to your Cursor configuration. Open Cursor settings and add:
+
+   ```json
+   {
+     "mcp.servers": {
+       "penpot": {
+         "command": "penpot-mcp",
+         "env": {
+           "PENPOT_API_URL": "https://design.penpot.app/api",
+           "PENPOT_USERNAME": "your_penpot_username",
+           "PENPOT_PASSWORD": "your_penpot_password"
+         }
+       }
+     }
+   }
+   ```
+
+3. **Alternative: Use environment variables** by creating a `.env` file in your project root:
+   ```bash
+   PENPOT_API_URL=https://design.penpot.app/api
+   PENPOT_USERNAME=your_penpot_username
+   PENPOT_PASSWORD=your_penpot_password
+   ```
+
+4. **Start the MCP server** in your project:
+   ```bash
+   # In your project directory
+   penpot-mcp
+   ```
+
+5. **Use in Cursor**: Once configured, you can interact with your Penpot designs directly in Cursor by asking questions like:
+   - "Show me all projects in my Penpot account"
+   - "Analyze the design components in project X"
+   - "Export the main button component as an image"
+   - "What design patterns are used in this file?"
+
+### Key Integration Features
+
+Both Claude Desktop and Cursor integration provide:
+- **Direct access** to Penpot projects and files
+- **Visual component analysis** with AI-powered insights
+- **Design export capabilities** for assets and components
+- **Natural language queries** about your design files
+- **Real-time design feedback** and suggestions
+- **Design system documentation** generation
 
 ## Package Structure
 
