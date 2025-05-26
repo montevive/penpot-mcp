@@ -7,7 +7,7 @@ name = "penpot-mcp"
 dynamic = ["version"]
 description = "Model Context Protocol server for Penpot - AI-powered design workflow automation"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Montevive AI Team", email = "info@montevive.ai"}
 ]
