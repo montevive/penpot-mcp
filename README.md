@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/montevive-penpot-mcp-badge.png)](https://mseep.ai/app/montevive-penpot-mcp)
+
 # Penpot MCP Server 🎨🤖
 
 <p align="center">
