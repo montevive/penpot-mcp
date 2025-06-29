@@ -1,0 +1,208 @@
+name: Publish to PyPI
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'docs/**'
+      - '.gitignore'
+  release:
+    types: [published]
+
+jobs:
+  # Only run if tests pass first
+  check-tests:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: check-tests
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for version bump detection
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra dev
+    
+    - name: Check if version was bumped
+      id: version-check
+      run: |
+        # Get current version from __init__.py
+        CURRENT_VERSION=$(python -c "import penpot_mcp; print(penpot_mcp.__version__)")
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        
+        # Check if this version already exists on PyPI
+        if pip index versions penpot-mcp | grep -q "$CURRENT_VERSION"; then
+          echo "version_exists=true" >> $GITHUB_OUTPUT
+          echo "Version $CURRENT_VERSION already exists on PyPI"
+        else
+          echo "version_exists=false" >> $GITHUB_OUTPUT
+          echo "Version $CURRENT_VERSION is new, will publish"
+        fi
+    
+    - name: Build package
+      if: steps.version-check.outputs.version_exists == 'false'
+      run: |
+        uv build
+    
+    - name: Check package quality
+      if: steps.version-check.outputs.version_exists == 'false'
+      run: |
+        # Install twine for checking
+        uv add twine
+        
+        # Check the built package
+        uv run twine check dist/*
+        
+        # Verify package contents
+        python -m tarfile -l dist/*.tar.gz
+        python -m zipfile -l dist/*.whl
+    
+    - name: Test package installation
+      if: steps.version-check.outputs.version_exists == 'false'
+      run: |
+        # Test installation in a clean environment
+        python -m pip install dist/*.whl
+        
+        # Test basic imports and CLI
+        python -c "import penpot_mcp; print(f'Successfully imported penpot_mcp v{penpot_mcp.__version__}')"
+        penpot-mcp --help
+        
+        # Uninstall to avoid conflicts
+        python -m pip uninstall -y penpot-mcp
+    
+    - name: Publish to Test PyPI
+      if: steps.version-check.outputs.version_exists == 'false'
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      run: |
+        uv run twine upload --repository testpypi dist/* --verbose
+      continue-on-error: true  # Test PyPI upload can fail, but don't stop main PyPI upload
+    
+    - name: Wait for Test PyPI propagation
+      if: steps.version-check.outputs.version_exists == 'false'
+      run: |
+        echo "Waiting 60 seconds for Test PyPI propagation..."
+        sleep 60
+    
+    - name: Test installation from Test PyPI
+      if: steps.version-check.outputs.version_exists == 'false'
+      run: |
+        # Try to install from Test PyPI (may fail due to dependencies)
+        python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ penpot-mcp==${{ steps.version-check.outputs.current_version }} || echo "Test PyPI installation failed (expected due to dependencies)"
+      continue-on-error: true
+    
+    - name: Publish to PyPI
+      if: steps.version-check.outputs.version_exists == 'false'
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        uv run twine upload dist/* --verbose
+    
+    - name: Create GitHub Release
+      if: steps.version-check.outputs.version_exists == 'false'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version-check.outputs.current_version }}
+        release_name: Release v${{ steps.version-check.outputs.current_version }}
+        body: |
+          ## Changes in v${{ steps.version-check.outputs.current_version }}
+          
+          Auto-generated release for version ${{ steps.version-check.outputs.current_version }}.
+          
+          ### Installation
+          ```bash
+          pip install penpot-mcp==${{ steps.version-check.outputs.current_version }}
+          # or
+          uvx penpot-mcp
+          ```
+          
+          ### What's Changed
+          See commit history for detailed changes.
+          
+          **Full Changelog**: https://github.com/montevive/penpot-mcp/compare/v${{ steps.version-check.outputs.current_version }}...HEAD
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Assets
+      if: steps.version-check.outputs.version_exists == 'false'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: dist/
+        asset_name: penpot-mcp-${{ steps.version-check.outputs.current_version }}-dist.zip
+        asset_content_type: application/zip
+    
+    - name: Notify on success
+      if: steps.version-check.outputs.version_exists == 'false'
+      run: |
+        echo "✅ Successfully published penpot-mcp v${{ steps.version-check.outputs.current_version }} to PyPI!"
+        echo "📦 Package: https://pypi.org/project/penpot-mcp/${{ steps.version-check.outputs.current_version }}/"
+        echo "🏷️ Release: https://github.com/montevive/penpot-mcp/releases/tag/v${{ steps.version-check.outputs.current_version }}"
+    
+    - name: Skip publishing
+      if: steps.version-check.outputs.version_exists == 'true'
+      run: |
+        echo "⏭️ Skipping publish - version ${{ steps.version-check.outputs.current_version }} already exists on PyPI"
+
+  # Manual release workflow (triggered by GitHub releases)
+  publish-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra dev
+    
+    - name: Update version to match release tag
+      run: |
+        RELEASE_VERSION="${{ github.event.release.tag_name }}"
+        # Remove 'v' prefix if present
+        VERSION="${RELEASE_VERSION#v}"
+        
+        # Update version in __init__.py
+        sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" penpot_mcp/__init__.py
+        
+        echo "Updated version to: $VERSION"
+    
+    - name: Build and publish
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        uv build
+        uv run twine check dist/*
+        uv run twine upload dist/* --verbose
