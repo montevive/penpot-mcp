@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP, Image
 
-from penpot_mcp.api.penpot_api import PenpotAPI, CloudFlareError, PenpotAPIError
+from penpot_mcp.api.penpot_api import CloudFlareError, PenpotAPI, PenpotAPIError
 from penpot_mcp.tools.penpot_tree import get_object_subtree_with_fields
 from penpot_mcp.utils import config
 from penpot_mcp.utils.cache import MemoryCache
