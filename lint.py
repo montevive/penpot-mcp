@@ -6,11 +6,8 @@ Run with: python lint.py [--autofix]
 
 import argparse
 import importlib.util
-import os
-import site
 import subprocess
 import sys
-from pathlib import Path
 
 
 def is_venv():

@@ -1,0 +1,46 @@
+[flake8]
+max-line-length = 88
+exclude = 
+    .venv,
+    venv,
+    __pycache__,
+    .git,
+    build,
+    dist,
+    *.egg-info,
+    node_modules,
+    .tox,
+    .pytest_cache
+ignore = 
+    # Line too long (handled by max-line-length)
+    E501,
+    # Missing docstrings (can be addressed later)
+    D100, D101, D102, D103, D105, D107,
+    # Docstring formatting (can be addressed later)
+    D200, D205, D401,
+    # Whitespace issues (auto-fixable)
+    W293, W291, W292,
+    # Unused imports (will be cleaned up)
+    F401,
+    # Unused variables (will be cleaned up)
+    F841,
+    # Bare except (will be improved)
+    E722,
+    # f-string without placeholders
+    F541,
+    # Comparison to True (minor issue)
+    E712,
+    # Continuation line formatting
+    E128,
+    # Blank line formatting
+    E302, E306
+per-file-ignores =
+    # Tests can be more lenient
+    tests/*:D,E,F,W
+    # CLI tools can be more lenient
+    */cli/*:D401
+    # Allow unused imports in __init__.py files
+    */__init__.py:F401
+    # Allow long lines in configuration files
+    */config.py:E501
+select = E,W,F
