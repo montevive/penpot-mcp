@@ -116,3 +116,7 @@ DEBUG=true               # debug logging
 - Test both stdio and SSE modes
 - Verify Transit format conversions
 - Check cache behavior and expiration
+
+## Memories
+
+- Keep the current transport format for the current API requests
