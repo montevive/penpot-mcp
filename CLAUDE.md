@@ -84,7 +84,8 @@ penpot-validate path/to/penpot_file.json
 ### Environment Configuration
 
 Create a `.env` file with:
-```
+
+```env
 PENPOT_API_URL=https://design.penpot.app/api
 PENPOT_USERNAME=your_username
 PENPOT_PASSWORD=your_password
