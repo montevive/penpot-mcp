@@ -8,6 +8,7 @@ import argparse
 import importlib.util
 import subprocess
 import sys
+from pathlib import Path
 
 
 def is_venv():
