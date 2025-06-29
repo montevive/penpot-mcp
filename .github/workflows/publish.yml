@@ -47,8 +47,9 @@ jobs:
         CURRENT_VERSION=$(python -c "import penpot_mcp; print(penpot_mcp.__version__)")
         echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
         
-        # Check if this version already exists on PyPI
-        if pip index versions penpot-mcp | grep -q "$CURRENT_VERSION"; then
+        # Check if this version already exists on PyPI using the JSON API
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/penpot-mcp/$CURRENT_VERSION/json")
+        if [ "$HTTP_STATUS" = "200" ]; then
           echo "version_exists=true" >> $GITHUB_OUTPUT
           echo "Version $CURRENT_VERSION already exists on PyPI"
         else
@@ -119,12 +120,10 @@ jobs:
     
     - name: Create GitHub Release
       if: steps.version-check.outputs.version_exists == 'false'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ steps.version-check.outputs.current_version }}
-        release_name: Release v${{ steps.version-check.outputs.current_version }}
+        name: Release v${{ steps.version-check.outputs.current_version }}
         body: |
           ## Changes in v${{ steps.version-check.outputs.current_version }}
           
@@ -141,19 +140,9 @@ jobs:
           See commit history for detailed changes.
           
           **Full Changelog**: https://github.com/montevive/penpot-mcp/compare/v${{ steps.version-check.outputs.current_version }}...HEAD
+        files: dist/*
         draft: false
         prerelease: false
-    
-    - name: Upload Release Assets
-      if: steps.version-check.outputs.version_exists == 'false'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: dist/
-        asset_name: penpot-mcp-${{ steps.version-check.outputs.current_version }}-dist.zip
-        asset_content_type: application/zip
     
     - name: Notify on success
       if: steps.version-check.outputs.version_exists == 'false'
