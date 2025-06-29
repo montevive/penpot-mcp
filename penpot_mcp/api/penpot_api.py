@@ -61,16 +61,12 @@ class PenpotAPI:
         Returns:
             Auth token for API calls
         """
-        # Just use the export authentication as it's more reliable
+        # Use the export authentication which also extracts profile ID
         token = self.login_for_export(email, password)
         self.set_access_token(token)
-        # Get profile ID after login
-        try:
-            self.get_profile()
-        except Exception as e:
-            if self.debug:
-                print(f"\nWarning: Could not get profile (may be blocked by Cloudflare): {e}")
-            # Continue without profile_id - most operations don't need it
+        # Profile ID is now extracted during login_for_export, no need to call get_profile
+        if self.debug and self.profile_id:
+            print(f"\nProfile ID available: {self.profile_id}")
         return token
 
     def get_profile(self) -> Dict[str, Any]:
@@ -153,6 +149,45 @@ class PenpotAPI:
             print(f"\nError response: {response.status_code}")
             print(f"Response text: {response.text}")
         response.raise_for_status()
+
+        # Extract profile ID from response
+        try:
+            # The response is in Transit+JSON array format
+            data = response.json()
+            if isinstance(data, list):
+                # Convert Transit array to dict
+                transit_dict = {}
+                i = 1  # Skip the "^ " marker
+                while i < len(data) - 1:
+                    key = data[i]
+                    value = data[i + 1]
+                    transit_dict[key] = value
+                    i += 2
+                
+                # Extract profile ID
+                if "~:id" in transit_dict:
+                    profile_id = transit_dict["~:id"]
+                    # Remove the ~u prefix for UUID
+                    if isinstance(profile_id, str) and profile_id.startswith("~u"):
+                        profile_id = profile_id[2:]
+                    self.profile_id = profile_id
+                    if self.debug:
+                        print(f"\nExtracted profile ID from login response: {profile_id}")
+        except Exception as e:
+            if self.debug:
+                print(f"\nCouldn't extract profile ID from response: {e}")
+
+        # Also try to extract profile ID from auth-data cookie
+        if not self.profile_id:
+            for cookie in login_session.cookies:
+                if cookie.name == "auth-data":
+                    # Cookie value is like: "profile-id=7ae66c33-6ede-81e2-8006-6a1b4dce3d2b"
+                    if "profile-id=" in cookie.value:
+                        profile_id = cookie.value.split("profile-id=")[1].split(";")[0].strip('"')
+                        self.profile_id = profile_id
+                        if self.debug:
+                            print(f"\nExtracted profile ID from auth-data cookie: {profile_id}")
+                    break
 
         # Extract auth token from cookies
         if 'Set-Cookie' in response.headers:
@@ -471,16 +506,12 @@ class PenpotAPI:
         # This uses the cookie auth approach, which requires login
         token = self.login_for_export(email, password)
 
-        # If profile_id is not provided, get it from instance variable or fetch it
+        # If profile_id is not provided, get it from instance variable
         if not profile_id:
-            if not self.profile_id:
-                # We need to set the token first for the get_profile call to work
-                self.set_access_token(token)
-                self.get_profile()
             profile_id = self.profile_id
 
         if not profile_id:
-            raise ValueError("Profile ID not available and couldn't be retrieved automatically")
+            raise ValueError("Profile ID not available. It should be automatically extracted during login.")
 
         # Build the URL for export creation
         url = f"{self.base_url}/export"
