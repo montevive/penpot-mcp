@@ -41,7 +41,7 @@ jobs:
     
     - name: Create Pull Request for fixes
       if: success()
-      uses: peter-evans/create-pull-request@v6
+      uses: peter-evans/create-pull-request@v7
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: "🔧 Auto-fix code quality issues"
