@@ -31,7 +31,8 @@ class PenpotAPI:
         # based on the required content type (JSON vs Transit+JSON)
         self.session.headers.update({
             "Accept": "application/json, application/transit+json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
 
     def set_access_token(self, token: str):
@@ -64,7 +65,12 @@ class PenpotAPI:
         token = self.login_for_export(email, password)
         self.set_access_token(token)
         # Get profile ID after login
-        self.get_profile()
+        try:
+            self.get_profile()
+        except Exception as e:
+            if self.debug:
+                print(f"\nWarning: Could not get profile (may be blocked by Cloudflare): {e}")
+            # Continue without profile_id - most operations don't need it
         return token
 
     def get_profile(self) -> Dict[str, Any]:
@@ -138,7 +144,8 @@ class PenpotAPI:
 
         # Set headers
         headers = {
-            "Content-Type": "application/transit+json"
+            "Content-Type": "application/transit+json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         response = login_session.post(url, json=payload, headers=headers)
@@ -171,7 +178,7 @@ class PenpotAPI:
             # If we reached here, we couldn't find the token
             raise ValueError("Auth token not found in response cookies or JSON body")
 
-    def _make_authenticated_request(self, method: str, url: str, **kwargs) -> requests.Response:
+    def _make_authenticated_request(self, method: str, url: str, retry_auth: bool = True, **kwargs) -> requests.Response:
         """
         Make an authenticated request, handling re-auth if needed.
 
@@ -269,7 +276,11 @@ class PenpotAPI:
 
         except requests.HTTPError as e:
             # Handle authentication errors
-            if e.response.status_code in (401, 403) and self.email and self.password:
+            if e.response.status_code in (401, 403) and self.email and self.password and retry_auth:
+                # Special case: don't retry auth for get-profile to avoid infinite loops
+                if url.endswith('/get-profile'):
+                    raise
+                    
                 if self.debug:
                     print("\nAuthentication failed. Trying to re-login...")
 
@@ -280,7 +291,7 @@ class PenpotAPI:
                 headers['Authorization'] = f"Token {self.access_token}"
                 combined_headers = {**self.session.headers, **headers}
 
-                # Retry the request with the new token
+                # Retry the request with the new token (but don't retry auth again)
                 response = getattr(self.session, method)(url, headers=combined_headers, **kwargs)
                 response.raise_for_status()
                 return response
@@ -500,7 +511,8 @@ class PenpotAPI:
 
         headers = {
             "Content-Type": "application/transit+json",
-            "Accept": "application/transit+json"
+            "Accept": "application/transit+json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         # Make the request
@@ -557,7 +569,8 @@ class PenpotAPI:
         }
         headers = {
             "Content-Type": "application/transit+json",
-            "Accept": "*/*"
+            "Accept": "*/*",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         if self.debug:
             print(f"\nFetching export resource: {url}")

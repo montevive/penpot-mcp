@@ -5,13 +5,14 @@ This module defines the MCP server with resources and tools for interacting with
 the Penpot design platform.
 """
 
+import argparse
 import hashlib
 import json
 import os
 import re
-import argparse
 import sys
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
+
 from mcp.server.fastmcp import FastMCP, Image
 
 from penpot_mcp.api.penpot_api import PenpotAPI

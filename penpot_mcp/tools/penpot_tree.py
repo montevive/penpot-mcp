@@ -6,7 +6,7 @@ a tree representation, which can be displayed or exported.
 """
 
 import re
-from typing import Any, Dict, Optional, Union, List
+from typing import Any, Dict, List, Optional, Union
 
 from anytree import Node, RenderTree
 from anytree.exporter import DotExporter

@@ -2,9 +2,10 @@
 
 import io
 import json
+import socketserver
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import socketserver
+
 
 class InMemoryImageHandler(BaseHTTPRequestHandler):
     """HTTP request handler for serving images stored in memory."""

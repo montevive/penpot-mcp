@@ -1,12 +1,13 @@
 """Tests for the MCP server module."""
 
+import hashlib
 import json
 import os
-import hashlib
 from unittest.mock import MagicMock, mock_open, patch
 
-import yaml
 import pytest
+import yaml
+
 from penpot_mcp.server.mcp_server import PenpotMCPServer, create_server
 
 

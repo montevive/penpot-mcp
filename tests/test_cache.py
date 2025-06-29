@@ -3,8 +3,11 @@ Tests for the memory caching functionality.
 """
 
 import time
+
 import pytest
+
 from penpot_mcp.utils.cache import MemoryCache
+
 
 @pytest.fixture
 def memory_cache():

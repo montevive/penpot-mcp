@@ -7,14 +7,14 @@ import pytest
 from anytree import Node, RenderTree
 
 from penpot_mcp.tools.penpot_tree import (
-    build_tree, 
-    print_tree, 
-    export_tree_to_dot, 
-    find_page_containing_object, 
-    find_object_in_tree, 
-    convert_node_to_dict, 
+    build_tree,
+    convert_node_to_dict,
+    export_tree_to_dot,
+    find_object_in_tree,
+    find_page_containing_object,
     get_object_subtree,
-    get_object_subtree_with_fields
+    get_object_subtree_with_fields,
+    print_tree,
 )
 
 
