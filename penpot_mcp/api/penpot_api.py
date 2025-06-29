@@ -7,6 +7,28 @@ import requests
 from dotenv import load_dotenv
 
 
+class CloudFlareError(Exception):
+    """Exception raised when CloudFlare protection blocks the request."""
+    
+    def __init__(self, message: str, status_code: int = None, response_text: str = None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.response_text = response_text
+        
+    def __str__(self):
+        return f"CloudFlare Protection Error: {super().__str__()}"
+
+
+class PenpotAPIError(Exception):
+    """General exception for Penpot API errors."""
+    
+    def __init__(self, message: str, status_code: int = None, response_text: str = None, is_cloudflare: bool = False):
+        super().__init__(message)
+        self.status_code = status_code
+        self.response_text = response_text
+        self.is_cloudflare = is_cloudflare
+
+
 class PenpotAPI:
     def __init__(
             self,
@@ -34,6 +56,70 @@ class PenpotAPI:
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
+
+    def _is_cloudflare_error(self, response: requests.Response) -> bool:
+        """Check if the response indicates a CloudFlare error."""
+        # Check for CloudFlare-specific indicators
+        cloudflare_indicators = [
+            'cloudflare',
+            'cf-ray',
+            'attention required',
+            'checking your browser',
+            'challenge',
+            'ddos protection',
+            'security check',
+            'cf-browser-verification',
+            'cf-challenge-running',
+            'please wait while we are checking your browser',
+            'enable cookies and reload the page',
+            'this process is automatic'
+        ]
+        
+        # Check response headers for CloudFlare
+        server_header = response.headers.get('server', '').lower()
+        cf_ray = response.headers.get('cf-ray')
+        
+        if 'cloudflare' in server_header or cf_ray:
+            return True
+            
+        # Check response content for CloudFlare indicators
+        try:
+            response_text = response.text.lower()
+            for indicator in cloudflare_indicators:
+                if indicator in response_text:
+                    return True
+        except:
+            # If we can't read the response text, don't assume it's CloudFlare
+            pass
+            
+        # Check for specific status codes that might indicate CloudFlare blocks
+        if response.status_code in [403, 429, 503]:
+            # Additional check for CloudFlare-specific error pages
+            try:
+                response_text = response.text.lower()
+                if any(['cloudflare' in response_text, 'cf-ray' in response_text, 'attention required' in response_text]):
+                    return True
+            except:
+                pass
+                
+        return False
+
+    def _create_cloudflare_error_message(self, response: requests.Response) -> str:
+        """Create a user-friendly CloudFlare error message."""
+        base_message = (
+            "CloudFlare protection has blocked this request. This is common on penpot.app. "
+            "To resolve this issue:\\n\\n"
+            "1. Open your web browser and navigate to https://design.penpot.app\\n"
+            "2. Log in to your Penpot account\\n"
+            "3. Complete any CloudFlare human verification challenges if prompted\\n"
+            "4. Once verified, try your request again\\n\\n"
+            "The verification typically lasts for a period of time, after which you may need to repeat the process."
+        )
+        
+        if response.status_code:
+            return f"{base_message}\\n\\nHTTP Status: {response.status_code}"
+        
+        return base_message
 
     def set_access_token(self, token: str):
         """Set the auth token for authentication."""
@@ -310,6 +396,11 @@ class PenpotAPI:
             return response
 
         except requests.HTTPError as e:
+            # Check for CloudFlare errors first
+            if self._is_cloudflare_error(e.response):
+                cloudflare_message = self._create_cloudflare_error_message(e.response)
+                raise CloudFlareError(cloudflare_message, e.response.status_code, e.response.text)
+            
             # Handle authentication errors
             if e.response.status_code in (401, 403) and self.email and self.password and retry_auth:
                 # Special case: don't retry auth for get-profile to avoid infinite loops
@@ -333,6 +424,15 @@ class PenpotAPI:
             else:
                 # Re-raise other errors
                 raise
+        except requests.RequestException as e:
+            # Handle other request exceptions (connection errors, timeouts, etc.)
+            # Check if we have a response to analyze
+            if hasattr(e, 'response') and e.response is not None:
+                if self._is_cloudflare_error(e.response):
+                    cloudflare_message = self._create_cloudflare_error_message(e.response)
+                    raise CloudFlareError(cloudflare_message, e.response.status_code, e.response.text)
+            # Re-raise if not a CloudFlare error
+            raise
 
     def _normalize_transit_response(self, data: Union[Dict, List, Any]) -> Union[Dict, List, Any]:
         """
