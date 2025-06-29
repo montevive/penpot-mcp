@@ -151,6 +151,12 @@ PORT=5000
 DEBUG=true
 ```
 
+> **⚠️ CloudFlare Protection Notice**: The Penpot cloud site (penpot.app) uses CloudFlare protection that may occasionally block API requests. If you encounter authentication errors or blocked requests:
+> 1. Open your web browser and navigate to [https://design.penpot.app](https://design.penpot.app)
+> 2. Log in to your Penpot account
+> 3. Complete any CloudFlare human verification challenges if prompted
+> 4. Once verified, the API requests should work normally for a period of time
+
 ## Usage
 
 ### Running the MCP Server

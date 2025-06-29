@@ -5,16 +5,17 @@ This module defines the MCP server with resources and tools for interacting with
 the Penpot design platform.
 """
 
+import argparse
 import hashlib
 import json
 import os
 import re
-import argparse
 import sys
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
+
 from mcp.server.fastmcp import FastMCP, Image
 
-from penpot_mcp.api.penpot_api import PenpotAPI
+from penpot_mcp.api.penpot_api import CloudFlareError, PenpotAPI, PenpotAPIError
 from penpot_mcp.tools.penpot_tree import get_object_subtree_with_fields
 from penpot_mcp.utils import config
 from penpot_mcp.utils.cache import MemoryCache
@@ -90,6 +91,30 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         else:
             self._register_resources(resources_only=False)
             self._register_tools(include_resource_tools=False)
+    
+    def _handle_api_error(self, e: Exception) -> dict:
+        """Handle API errors and return user-friendly error messages."""
+        if isinstance(e, CloudFlareError):
+            return {
+                "error": "CloudFlare Protection",
+                "message": str(e),
+                "error_type": "cloudflare_protection",
+                "instructions": [
+                    "Open your web browser and navigate to https://design.penpot.app",
+                    "Log in to your Penpot account", 
+                    "Complete any CloudFlare human verification challenges if prompted",
+                    "Once verified, try your request again"
+                ]
+            }
+        elif isinstance(e, PenpotAPIError):
+            return {
+                "error": "Penpot API Error",
+                "message": str(e),
+                "error_type": "api_error",
+                "status_code": getattr(e, 'status_code', None)
+            }
+        else:
+            return {"error": str(e)}
 
     def _register_resources(self, resources_only=False):
         """Register all MCP resources. If resources_only is True, only register server://info as a resource."""
@@ -147,7 +172,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 projects = self.api.list_projects()
                 return {"projects": projects}
             except Exception as e:
-                return {"error": str(e)}
+                return self._handle_api_error(e)
         @self.mcp.tool()
         def get_project_files(project_id: str) -> dict:
             """Get all files contained within a specific Penpot project.
@@ -159,7 +184,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 files = self.api.get_project_files(project_id)
                 return {"files": files}
             except Exception as e:
-                return {"error": str(e)}
+                return self._handle_api_error(e)
         def get_cached_file(file_id: str) -> dict:
             """Internal helper to retrieve a file, using cache if available.
             
@@ -174,7 +199,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 self.file_cache.set(file_id, file_data)
                 return file_data
             except Exception as e:
-                return {"error": str(e)}
+                return self._handle_api_error(e)
         @self.mcp.tool()
         def get_file(file_id: str) -> dict:
             """Retrieve a Penpot file by its ID and cache it. Don't use this tool for code generation, use 'get_object_tree' instead.
@@ -187,7 +212,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 self.file_cache.set(file_id, file_data)
                 return file_data
             except Exception as e:
-                return {"error": str(e)}
+                return self._handle_api_error(e)
         @self.mcp.tool()
         def export_object(
                 file_id: str,
@@ -232,7 +257,10 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                     
                 return image
             except Exception as e:
-                raise Exception(f"Export failed: {str(e)}")
+                if isinstance(e, CloudFlareError):
+                    raise Exception(f"CloudFlare Protection: {str(e)}")
+                else:
+                    raise Exception(f"Export failed: {str(e)}")
             finally:
                 if temp_filename and os.path.exists(temp_filename):
                     try:
@@ -308,7 +336,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                         return {"format_error": f"Error formatting as YAML: {str(e)}"}
                 return final_result
             except Exception as e:
-                return {"error": str(e)}
+                return self._handle_api_error(e)
         @self.mcp.tool()
         def search_object(file_id: str, query: str) -> dict:
             """Search for objects within a Penpot file by name.
@@ -338,7 +366,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                             })
                 return {'objects': matches}
             except Exception as e:
-                return {"error": str(e)}
+                return self._handle_api_error(e)
         if include_resource_tools:
             @self.mcp.tool()
             def penpot_schema() -> dict:

@@ -1,0 +1,156 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version-type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      custom-version:
+        description: 'Custom version (optional, overrides version-type)'
+        required: false
+        type: string
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install packaging
+    
+    - name: Get current version
+      id: current-version
+      run: |
+        CURRENT_VERSION=$(python -c "import penpot_mcp; print(penpot_mcp.__version__)")
+        echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+    
+    - name: Calculate new version
+      id: new-version
+      run: |
+        python << 'EOF'
+        import os
+        from packaging import version
+        
+        current = "${{ steps.current-version.outputs.current }}"
+        custom = "${{ github.event.inputs.custom-version }}"
+        bump_type = "${{ github.event.inputs.version-type }}"
+        
+        if custom:
+            new_version = custom
+        else:
+            v = version.parse(current)
+            if bump_type == "major":
+                new_version = f"{v.major + 1}.0.0"
+            elif bump_type == "minor":
+                new_version = f"{v.major}.{v.minor + 1}.0"
+            else:  # patch
+                new_version = f"{v.major}.{v.minor}.{v.micro + 1}"
+        
+        print(f"New version: {new_version}")
+        
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"version={new_version}\n")
+        EOF
+    
+    - name: Update version in files
+      run: |
+        NEW_VERSION="${{ steps.new-version.outputs.version }}"
+        
+        # Update __init__.py
+        sed -i "s/__version__ = \".*\"/__version__ = \"$NEW_VERSION\"/" penpot_mcp/__init__.py
+        
+        # Verify the change
+        echo "Updated version in penpot_mcp/__init__.py:"
+        grep "__version__" penpot_mcp/__init__.py
+    
+    - name: Create changelog entry
+      run: |
+        NEW_VERSION="${{ steps.new-version.outputs.version }}"
+        DATE=$(date +"%Y-%m-%d")
+        
+        # Create CHANGELOG.md if it doesn't exist
+        if [ ! -f CHANGELOG.md ]; then
+          cat > CHANGELOG.md << 'EOF'
+        # Changelog
+        
+        All notable changes to this project will be documented in this file.
+        
+        The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+        and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+        
+        EOF
+        fi
+        
+        # Add new version entry
+        sed -i "3i\\\\n## [$NEW_VERSION] - $DATE\\\\n\\\\n### Added\\\\n- Version bump to $NEW_VERSION\\\\n\\\\n### Changed\\\\n- Update dependencies and improve stability\\\\n\\\\n### Fixed\\\\n- Bug fixes and performance improvements\\\\n" CHANGELOG.md
+        
+        echo "Updated CHANGELOG.md with version $NEW_VERSION"
+    
+    - name: Commit and push changes
+      run: |
+        NEW_VERSION="${{ steps.new-version.outputs.version }}"
+        
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add penpot_mcp/__init__.py CHANGELOG.md
+        git commit -m "Bump version to $NEW_VERSION
+        
+        - Update version in __init__.py to $NEW_VERSION
+        - Add changelog entry for version $NEW_VERSION
+        
+        🤖 Generated with GitHub Actions"
+        
+        git push
+        
+        echo "✅ Version bumped to $NEW_VERSION and pushed to repository"
+    
+    - name: Create pull request (if on branch)
+      if: github.ref != 'refs/heads/main'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "Bump version to ${{ steps.new-version.outputs.version }}"
+        title: "🔖 Bump version to ${{ steps.new-version.outputs.version }}"
+        body: |
+          ## Version Bump to ${{ steps.new-version.outputs.version }}
+          
+          This PR was automatically created to bump the version.
+          
+          ### Changes
+          - Updated `__version__` in `penpot_mcp/__init__.py`
+          - Added changelog entry for version ${{ steps.new-version.outputs.version }}
+          
+          ### Type of Change
+          - [${{ github.event.inputs.version-type == 'major' && 'x' || ' ' }}] Major version (breaking changes)
+          - [${{ github.event.inputs.version-type == 'minor' && 'x' || ' ' }}] Minor version (new features)
+          - [${{ github.event.inputs.version-type == 'patch' && 'x' || ' ' }}] Patch version (bug fixes)
+          
+          ### Checklist
+          - [x] Version updated in `__init__.py`
+          - [x] Changelog updated
+          - [ ] Tests pass (will be verified by CI)
+          - [ ] Ready for merge and auto-publish
+          
+          **Note**: Merging this PR to `main` will trigger automatic publishing to PyPI.
+        branch: version-bump-${{ steps.new-version.outputs.version }}
+        delete-branch: true

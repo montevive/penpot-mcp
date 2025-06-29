@@ -6,8 +6,6 @@ Run with: python lint.py [--autofix]
 
 import argparse
 import importlib.util
-import os
-import site
 import subprocess
 import sys
 from pathlib import Path
@@ -221,7 +219,8 @@ def main():
 
     # Run flake8 (check only, no auto-fix)
     print("Running flake8...")
-    flake8_result = run_command("flake8", cwd=root_dir)
+    flake8_cmd = "flake8 --exclude=.venv,venv,__pycache__,.git,build,dist,*.egg-info,node_modules"
+    flake8_result = run_command(flake8_cmd, cwd=root_dir)
 
     if flake8_result != 0:
         print("flake8 found issues that need to be fixed manually.")

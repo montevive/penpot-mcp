@@ -6,7 +6,7 @@ a tree representation, which can be displayed or exported.
 """
 
 import re
-from typing import Any, Dict, Optional, Union, List
+from typing import Any, Dict, List, Optional, Union
 
 from anytree import Node, RenderTree
 from anytree.exporter import DotExporter
@@ -423,11 +423,27 @@ def get_object_subtree_with_fields(file_data: Dict[str, Any], object_id: str,
         if object_id not in objects_dict:
             return {"error": f"Object {object_id} not found in page {page_id}"}
             
+        # Track visited nodes to prevent infinite loops
+        visited = set()
+        
         # Function to recursively build the filtered object tree
         def build_filtered_object_tree(obj_id: str, current_depth: int = 0):
             if obj_id not in objects_dict:
                 return None
-                
+            
+            # Check for circular reference
+            if obj_id in visited:
+                # Return a placeholder to indicate circular reference
+                return {
+                    'id': obj_id,
+                    'name': objects_dict[obj_id].get('name', 'Unnamed'),
+                    'type': objects_dict[obj_id].get('type', 'unknown'),
+                    '_circular_reference': True
+                }
+            
+            # Mark this object as visited
+            visited.add(obj_id)
+            
             obj_data = objects_dict[obj_id]
             
             # Create a new dict with only the requested fields or all fields if None
@@ -441,6 +457,8 @@ def get_object_subtree_with_fields(file_data: Dict[str, Any], object_id: str,
             
             # If depth limit reached, don't process children
             if depth != -1 and current_depth >= depth:
+                # Remove from visited before returning
+                visited.remove(obj_id)
                 return filtered_obj
                 
             # Find all children of this object
@@ -454,6 +472,9 @@ def get_object_subtree_with_fields(file_data: Dict[str, Any], object_id: str,
             # Add children field only if we have children
             if children:
                 filtered_obj['children'] = children
+            
+            # Remove from visited after processing
+            visited.remove(obj_id)
                 
             return filtered_obj
         

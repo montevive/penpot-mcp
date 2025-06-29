@@ -7,14 +7,14 @@ import pytest
 from anytree import Node, RenderTree
 
 from penpot_mcp.tools.penpot_tree import (
-    build_tree, 
-    print_tree, 
-    export_tree_to_dot, 
-    find_page_containing_object, 
-    find_object_in_tree, 
-    convert_node_to_dict, 
+    build_tree,
+    convert_node_to_dict,
+    export_tree_to_dot,
+    find_object_in_tree,
+    find_page_containing_object,
     get_object_subtree,
-    get_object_subtree_with_fields
+    get_object_subtree_with_fields,
+    print_tree,
 )
 
 
@@ -1087,4 +1087,61 @@ def test_get_object_subtree_with_fields_root_frame():
     assert result['tree']['type'] == 'frame'
     assert 'children' in result['tree']
     assert len(result['tree']['children']) == 1
-    assert result['tree']['children'][0]['name'] == 'Main Container' 
+    assert result['tree']['children'][0]['name'] == 'Main Container'
+
+
+def test_get_object_subtree_with_fields_circular_reference():
+    """Test handling of circular references in object tree."""
+    file_data = {
+        'data': {
+            'pagesIndex': {
+                'page1': {
+                    'name': 'Test Page',
+                    'objects': {
+                        # Object A references B as parent
+                        'object-a': {
+                            'type': 'frame',
+                            'name': 'Object A',
+                            'parentId': 'object-b'
+                        },
+                        # Object B references A as parent (circular)
+                        'object-b': {
+                            'type': 'frame',
+                            'name': 'Object B',
+                            'parentId': 'object-a'
+                        },
+                        # Object C references itself as parent
+                        'object-c': {
+                            'type': 'frame',
+                            'name': 'Object C',
+                            'parentId': 'object-c'
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    # Test getting object A - should handle circular reference with B
+    result = get_object_subtree_with_fields(file_data, 'object-a')
+    assert 'error' not in result
+    assert result['tree']['id'] == 'object-a'
+    assert 'children' in result['tree']
+    # Check that object-b appears as a child
+    assert len(result['tree']['children']) == 1
+    assert result['tree']['children'][0]['id'] == 'object-b'
+    # The circular reference appears when object-a appears again as a child of object-b
+    assert 'children' in result['tree']['children'][0]
+    assert len(result['tree']['children'][0]['children']) == 1
+    assert result['tree']['children'][0]['children'][0]['id'] == 'object-a'
+    assert result['tree']['children'][0]['children'][0]['_circular_reference'] == True
+    
+    # Test getting object C - should handle self-reference
+    result = get_object_subtree_with_fields(file_data, 'object-c')
+    assert 'error' not in result
+    assert result['tree']['id'] == 'object-c'
+    assert 'children' in result['tree']
+    # Check that object-c appears as its own child with circular reference marker
+    assert len(result['tree']['children']) == 1
+    assert result['tree']['children'][0]['id'] == 'object-c'
+    assert result['tree']['children'][0]['_circular_reference'] == True 

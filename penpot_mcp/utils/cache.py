@@ -3,7 +3,8 @@ Cache utilities for Penpot MCP server.
 """
 
 import time
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 
 class MemoryCache:
     """In-memory cache implementation with TTL support."""

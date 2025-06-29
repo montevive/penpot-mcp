@@ -7,6 +7,28 @@ import requests
 from dotenv import load_dotenv
 
 
+class CloudFlareError(Exception):
+    """Exception raised when CloudFlare protection blocks the request."""
+    
+    def __init__(self, message: str, status_code: int = None, response_text: str = None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.response_text = response_text
+        
+    def __str__(self):
+        return f"CloudFlare Protection Error: {super().__str__()}"
+
+
+class PenpotAPIError(Exception):
+    """General exception for Penpot API errors."""
+    
+    def __init__(self, message: str, status_code: int = None, response_text: str = None, is_cloudflare: bool = False):
+        super().__init__(message)
+        self.status_code = status_code
+        self.response_text = response_text
+        self.is_cloudflare = is_cloudflare
+
+
 class PenpotAPI:
     def __init__(
             self,
@@ -31,8 +53,73 @@ class PenpotAPI:
         # based on the required content type (JSON vs Transit+JSON)
         self.session.headers.update({
             "Accept": "application/json, application/transit+json",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
+
+    def _is_cloudflare_error(self, response: requests.Response) -> bool:
+        """Check if the response indicates a CloudFlare error."""
+        # Check for CloudFlare-specific indicators
+        cloudflare_indicators = [
+            'cloudflare',
+            'cf-ray',
+            'attention required',
+            'checking your browser',
+            'challenge',
+            'ddos protection',
+            'security check',
+            'cf-browser-verification',
+            'cf-challenge-running',
+            'please wait while we are checking your browser',
+            'enable cookies and reload the page',
+            'this process is automatic'
+        ]
+        
+        # Check response headers for CloudFlare
+        server_header = response.headers.get('server', '').lower()
+        cf_ray = response.headers.get('cf-ray')
+        
+        if 'cloudflare' in server_header or cf_ray:
+            return True
+            
+        # Check response content for CloudFlare indicators
+        try:
+            response_text = response.text.lower()
+            for indicator in cloudflare_indicators:
+                if indicator in response_text:
+                    return True
+        except:
+            # If we can't read the response text, don't assume it's CloudFlare
+            pass
+            
+        # Check for specific status codes that might indicate CloudFlare blocks
+        if response.status_code in [403, 429, 503]:
+            # Additional check for CloudFlare-specific error pages
+            try:
+                response_text = response.text.lower()
+                if any(['cloudflare' in response_text, 'cf-ray' in response_text, 'attention required' in response_text]):
+                    return True
+            except:
+                pass
+                
+        return False
+
+    def _create_cloudflare_error_message(self, response: requests.Response) -> str:
+        """Create a user-friendly CloudFlare error message."""
+        base_message = (
+            "CloudFlare protection has blocked this request. This is common on penpot.app. "
+            "To resolve this issue:\\n\\n"
+            "1. Open your web browser and navigate to https://design.penpot.app\\n"
+            "2. Log in to your Penpot account\\n"
+            "3. Complete any CloudFlare human verification challenges if prompted\\n"
+            "4. Once verified, try your request again\\n\\n"
+            "The verification typically lasts for a period of time, after which you may need to repeat the process."
+        )
+        
+        if response.status_code:
+            return f"{base_message}\\n\\nHTTP Status: {response.status_code}"
+        
+        return base_message
 
     def set_access_token(self, token: str):
         """Set the auth token for authentication."""
@@ -60,11 +147,12 @@ class PenpotAPI:
         Returns:
             Auth token for API calls
         """
-        # Just use the export authentication as it's more reliable
+        # Use the export authentication which also extracts profile ID
         token = self.login_for_export(email, password)
         self.set_access_token(token)
-        # Get profile ID after login
-        self.get_profile()
+        # Profile ID is now extracted during login_for_export, no need to call get_profile
+        if self.debug and self.profile_id:
+            print(f"\nProfile ID available: {self.profile_id}")
         return token
 
     def get_profile(self) -> Dict[str, Any]:
@@ -138,7 +226,8 @@ class PenpotAPI:
 
         # Set headers
         headers = {
-            "Content-Type": "application/transit+json"
+            "Content-Type": "application/transit+json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         response = login_session.post(url, json=payload, headers=headers)
@@ -146,6 +235,45 @@ class PenpotAPI:
             print(f"\nError response: {response.status_code}")
             print(f"Response text: {response.text}")
         response.raise_for_status()
+
+        # Extract profile ID from response
+        try:
+            # The response is in Transit+JSON array format
+            data = response.json()
+            if isinstance(data, list):
+                # Convert Transit array to dict
+                transit_dict = {}
+                i = 1  # Skip the "^ " marker
+                while i < len(data) - 1:
+                    key = data[i]
+                    value = data[i + 1]
+                    transit_dict[key] = value
+                    i += 2
+                
+                # Extract profile ID
+                if "~:id" in transit_dict:
+                    profile_id = transit_dict["~:id"]
+                    # Remove the ~u prefix for UUID
+                    if isinstance(profile_id, str) and profile_id.startswith("~u"):
+                        profile_id = profile_id[2:]
+                    self.profile_id = profile_id
+                    if self.debug:
+                        print(f"\nExtracted profile ID from login response: {profile_id}")
+        except Exception as e:
+            if self.debug:
+                print(f"\nCouldn't extract profile ID from response: {e}")
+
+        # Also try to extract profile ID from auth-data cookie
+        if not self.profile_id:
+            for cookie in login_session.cookies:
+                if cookie.name == "auth-data":
+                    # Cookie value is like: "profile-id=7ae66c33-6ede-81e2-8006-6a1b4dce3d2b"
+                    if "profile-id=" in cookie.value:
+                        profile_id = cookie.value.split("profile-id=")[1].split(";")[0].strip('"')
+                        self.profile_id = profile_id
+                        if self.debug:
+                            print(f"\nExtracted profile ID from auth-data cookie: {profile_id}")
+                    break
 
         # Extract auth token from cookies
         if 'Set-Cookie' in response.headers:
@@ -171,7 +299,7 @@ class PenpotAPI:
             # If we reached here, we couldn't find the token
             raise ValueError("Auth token not found in response cookies or JSON body")
 
-    def _make_authenticated_request(self, method: str, url: str, **kwargs) -> requests.Response:
+    def _make_authenticated_request(self, method: str, url: str, retry_auth: bool = True, **kwargs) -> requests.Response:
         """
         Make an authenticated request, handling re-auth if needed.
 
@@ -268,8 +396,17 @@ class PenpotAPI:
             return response
 
         except requests.HTTPError as e:
+            # Check for CloudFlare errors first
+            if self._is_cloudflare_error(e.response):
+                cloudflare_message = self._create_cloudflare_error_message(e.response)
+                raise CloudFlareError(cloudflare_message, e.response.status_code, e.response.text)
+            
             # Handle authentication errors
-            if e.response.status_code in (401, 403) and self.email and self.password:
+            if e.response.status_code in (401, 403) and self.email and self.password and retry_auth:
+                # Special case: don't retry auth for get-profile to avoid infinite loops
+                if url.endswith('/get-profile'):
+                    raise
+                    
                 if self.debug:
                     print("\nAuthentication failed. Trying to re-login...")
 
@@ -280,13 +417,22 @@ class PenpotAPI:
                 headers['Authorization'] = f"Token {self.access_token}"
                 combined_headers = {**self.session.headers, **headers}
 
-                # Retry the request with the new token
+                # Retry the request with the new token (but don't retry auth again)
                 response = getattr(self.session, method)(url, headers=combined_headers, **kwargs)
                 response.raise_for_status()
                 return response
             else:
                 # Re-raise other errors
                 raise
+        except requests.RequestException as e:
+            # Handle other request exceptions (connection errors, timeouts, etc.)
+            # Check if we have a response to analyze
+            if hasattr(e, 'response') and e.response is not None:
+                if self._is_cloudflare_error(e.response):
+                    cloudflare_message = self._create_cloudflare_error_message(e.response)
+                    raise CloudFlareError(cloudflare_message, e.response.status_code, e.response.text)
+            # Re-raise if not a CloudFlare error
+            raise
 
     def _normalize_transit_response(self, data: Union[Dict, List, Any]) -> Union[Dict, List, Any]:
         """
@@ -460,16 +606,12 @@ class PenpotAPI:
         # This uses the cookie auth approach, which requires login
         token = self.login_for_export(email, password)
 
-        # If profile_id is not provided, get it from instance variable or fetch it
+        # If profile_id is not provided, get it from instance variable
         if not profile_id:
-            if not self.profile_id:
-                # We need to set the token first for the get_profile call to work
-                self.set_access_token(token)
-                self.get_profile()
             profile_id = self.profile_id
 
         if not profile_id:
-            raise ValueError("Profile ID not available and couldn't be retrieved automatically")
+            raise ValueError("Profile ID not available. It should be automatically extracted during login.")
 
         # Build the URL for export creation
         url = f"{self.base_url}/export"
@@ -500,7 +642,8 @@ class PenpotAPI:
 
         headers = {
             "Content-Type": "application/transit+json",
-            "Accept": "application/transit+json"
+            "Accept": "application/transit+json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         # Make the request
@@ -557,7 +700,8 @@ class PenpotAPI:
         }
         headers = {
             "Content-Type": "application/transit+json",
-            "Accept": "*/*"
+            "Accept": "*/*",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         if self.debug:
             print(f"\nFetching export resource: {url}")

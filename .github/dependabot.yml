@@ -1,0 +1,59 @@
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "montevive"
+    assignees:
+      - "montevive"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "pytest*"
+          - "flake8*"
+          - "coverage*"
+          - "pre-commit*"
+          - "isort*"
+          - "autopep8*"
+          - "pyupgrade*"
+          - "setuptools*"
+      production-dependencies:
+        patterns:
+          - "mcp*"
+          - "requests*"
+          - "python-dotenv*"
+          - "gunicorn*"
+          - "anytree*"
+          - "jsonschema*"
+          - "PyYAML*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "montevive"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
