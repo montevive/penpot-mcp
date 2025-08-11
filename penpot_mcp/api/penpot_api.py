@@ -35,7 +35,8 @@ class PenpotAPI:
             base_url: str = None,
             debug: bool = False,
             email: Optional[str] = None,
-            password: Optional[str] = None):
+            password: Optional[str] = None,
+            token: Optional[str] = None):
         # Load environment variables if not already loaded
         load_dotenv()
 
@@ -47,6 +48,7 @@ class PenpotAPI:
         self.debug = debug
         self.email = email or os.getenv("PENPOT_USERNAME")
         self.password = password or os.getenv("PENPOT_PASSWORD")
+        self.token = token or os.getenv("PENPOT_TOKEN")
         self.profile_id = None
 
         # Set default headers - we'll use different headers at request time
@@ -56,6 +58,10 @@ class PenpotAPI:
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
+
+        # If token is provided, set it immediately
+        if self.token:
+            self.set_access_token(self.token)
 
     def _is_cloudflare_error(self, response: requests.Response) -> bool:
         """Check if the response indicates a CloudFlare error."""
@@ -147,6 +153,12 @@ class PenpotAPI:
         Returns:
             Auth token for API calls
         """
+        # If token is already set, no need to login
+        if self.token:
+            if self.debug:
+                print("\nUsing existing token for authentication")
+            return self.token
+            
         # Use the export authentication which also extracts profile ID
         token = self.login_for_export(email, password)
         self.set_access_token(token)

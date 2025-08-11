@@ -141,17 +141,22 @@ pip install -e .
 
 ### Configuration
 
-Create a `.env` file based on `env.example` with your Penpot credentials:
+Create a `.env` file based on `env.example` with your Penpot credentials. You can use either:
+- `PENPOT_USERNAME` and `PENPOT_PASSWORD` for email/password authentication, OR
+- `PENPOT_TOKEN` for token-based authentication (which takes precedence if both are provided).
 
 ```
 PENPOT_API_URL=https://design.penpot.app/api
-PENPOT_USERNAME=your_penpot_username
-PENPOT_PASSWORD=your_penpot_password
+PENPOT_USERNAME=your_penpot_username   # Optional: use if you don't have a token
+PENPOT_PASSWORD=your_penpot_password   # Optional: use if you don't have a token
+PENPOT_TOKEN=your_penpot_token         # Optional: token-based authentication (takes precedence)
 PORT=5000
 DEBUG=true
 ```
 
-> **⚠️ CloudFlare Protection Notice**: The Penpot cloud site (penpot.app) uses CloudFlare protection that may occasionally block API requests. If you encounter authentication errors or blocked requests:
+> **Note**: Token authentication is recommended as it avoids CloudFlare verification challenges. You can generate an access token in your Penpot account settings.
+
+> **⚠️ CloudFlare Protection Notice**: If you're using email/password authentication, the Penpot cloud site (penpot.app) uses CloudFlare protection that may occasionally block API requests. If you encounter authentication errors or blocked requests:
 > 1. Open your web browser and navigate to [https://design.penpot.app](https://design.penpot.app)
 > 2. Log in to your Penpot account
 > 3. Complete any CloudFlare human verification challenges if prompted
