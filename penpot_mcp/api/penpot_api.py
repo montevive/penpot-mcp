@@ -662,12 +662,22 @@ class PenpotAPI:
             print("\nExport created successfully")
             print(f"Response: {json.dumps(data, indent=2)}")
 
-        # Extract and return the resource ID
+        # Extract the resource ID
         resource_id = data.get("~:id")
         if not resource_id:
             raise ValueError("Resource ID not found in response")
 
-        return resource_id
+        # Extract the direct asset URI if available.
+        # Penpot returns the URI as a Transit tagged value:
+        #   "~:uri": {"~#uri": "http://host/assets/by-id/..."}
+        asset_uri = None
+        uri_value = data.get("~:uri")
+        if isinstance(uri_value, dict):
+            asset_uri = uri_value.get("~#uri")
+        elif isinstance(uri_value, str):
+            asset_uri = uri_value
+
+        return resource_id, asset_uri
 
     def get_export_resource(self,
                             resource_id: str,
@@ -795,7 +805,7 @@ class PenpotAPI:
             Either the file content as bytes, or the path to the saved file
         """
         # Create the export
-        resource_id = self.create_export(
+        resource_id, asset_uri = self.create_export(
             file_id=file_id,
             page_id=page_id,
             object_id=object_id,
@@ -806,7 +816,33 @@ class PenpotAPI:
             profile_id=profile_id
         )
 
-        # Download the resource
+        # If a direct asset URI was returned, download from it directly.
+        # This is more reliable than the get-resource command, which can
+        # fail with 400 on some Penpot versions.
+        if asset_uri:
+            if self.debug:
+                print(f"\nDownloading export from asset URI: {asset_uri}")
+
+            token = self.login_for_export(email, password)
+            export_session = requests.Session()
+            export_session.cookies.set("auth-token", token)
+            response = export_session.get(asset_uri)
+            response.raise_for_status()
+
+            if save_to_file:
+                if os.path.isdir(save_to_file):
+                    ext = export_type if export_type != "svg+xml" else "svg"
+                    save_path = os.path.join(save_to_file, f"{object_id}.{ext}")
+                else:
+                    save_path = save_to_file
+                os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
+                with open(save_path, 'wb') as f:
+                    f.write(response.content)
+                return save_path
+            else:
+                return response.content
+
+        # Fall back to the get-resource command
         return self.get_export_resource(
             resource_id=resource_id,
             save_to_file=save_to_file,
